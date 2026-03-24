@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAU/USD Signal Pro - Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0f;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+}
+.header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 20px 30px;
+  border-bottom: 1px solid #ffd700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header h1 {
+  color: #ffd700;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.header .live-dot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #4caf50;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4caf50;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 20px 30px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.card {
+  background: #111118;
+  border: 1px solid #222230;
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.3s;
+}
+.card:hover { border-color: #ffd700; }
+.card-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #888;
+  margin-bottom: 12px;
+}
+.price-big {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ffd700;
+  font-family: 'Courier New', monospace;
+}
+.price-change {
+  font-size: 1rem;
+  margin-top: 4px;
+}
+.price-change.up { color: #4caf50; }
+.price-change.down { color: #f44336; }
+.signal-badge {
+  display: inline-block;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.signal-badge.buy { background: rgba(76,175,80,0.2); color: #4caf50; border: 1px solid #4caf50; }
+.signal-badge.sell { background: rgba(244,67,54,0.2); color: #f44336; border: 1px solid #f44336; }
+.signal-badge.neutre { background: rgba(255,193,7,0.2); color: #ffc107; border: 1px solid #ffc107; }
+.confidence-bar {
+  height: 8px;
+  background: #222;
+  border-radius: 4px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+.confidence-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ffd700, #ff9800);
+  transition: width 0.8s ease;
+}
+.level-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #1a1a22;
+  font-size: 0.9rem;
+}
+.level-row:last-child { border-bottom: none; }
+.level-label { color: #888; }
+.level-value { font-family: 'Courier New', monospace; color: #fff; }
+.level-value.tp { color: #4caf50; }
+.level-value.sl { color: #f44336; }
+.level-value.entry { color: #ffd700; }
+.indicator-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.ind-item {
+  background: #0d0d15;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.ind-name { font-size: 0.7rem; color: #666; text-transform: uppercase; }
+.ind-value { font-size: 1rem; font-weight: 600; font-family: 'Courier New', monospace; }
+.ind-value.bull { color: #4caf50; }
+.ind-value.bear { color: #f44336; }
+.ind-value.neut { color: #ffc107; }
+.signals-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.signals-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #666;
+  border-bottom: 1px solid #222;
+}
+.signals-table td {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #111;
+}
+.signals-table tr:hover td { background: #111118; }
+.outcome-win { color: #4caf50; font-weight: 600; }
+.outcome-loss { color: #f44336; font-weight: 600; }
+.outcome-open { color: #ffc107; }
+.perf-big {
+  font-size: 2rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+}
+.perf-big.good { color: #4caf50; }
+.perf-big.bad { color: #f44336; }
+.perf-big.neutral { color: #ffc107; }
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 0.9rem;
+}
+.stat-label { color: #888; }
+.stat-value { font-weight: 600; }
+.news-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #1a1a22;
+}
+.news-item:last-child { border-bottom: none; }
+.news-source {
+  font-size: 0.7rem;
+  color: #ffd700;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.news-headline { font-size: 0.85rem; line-height: 1.4; }
+.news-age { font-size: 0.7rem; color: #555; margin-top: 3px; }
+.cot-bull { color: #4caf50; }
+.cot-bear { color: #f44336; }
+.refresh-btn {
+  background: #ffd700;
+  color: #000;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.refresh-btn:hover { background: #ffaa00; }
+.full-width { grid-column: 1 / -1; }
+.loading { color: #555; text-align: center; padding: 20px; }
+.error { color: #f44336; font-size: 0.85rem; padding: 10px; }
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  margin: 2px;
+}
+.tag.bull { background: rgba(76,175,80,0.2); color: #4caf50; }
+.tag.bear { background: rgba(244,67,54,0.2); color: #f44336; }
+.tag.neut { background: rgba(255,193,7,0.2); color: #ffc107; }
+.mtf-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.mtf-card {
+  flex: 1;
+  background: #0d0d15;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+.mtf-tf { font-size: 0.7rem; color: #666; }
+.mtf-sig { font-size: 0.9rem; font-weight: 700; }
+.mtf-conf { font-size: 0.75rem; color: #888; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>XAU/USD Signal Pro</h1>
+  <div style="display:flex;align-items:center;gap:15px;">
+    <div class="live-dot">
+      <div class="dot"></div>
+      <span id="last-update">Chargement...</span>
+    </div>
+    <button class="refresh-btn" onclick="loadAll()">Actualiser</button>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- PRIX -->
+  <div class="card">
+    <div class="card-title">Prix XAU/USD</div>
+    <div class="price-big" id="price">---</div>
+    <div class="price-change" id="price-change">---</div>
+    <div style="margin-top:15px;">
+      <div class="level-row">
+        <span class="level-label">High 24h</span>
+        <span class="level-value" id="high24">---</span>
+      </div>
+      <div class="level-row">
+        <span class="level-label">Low 24h</span>
+        <span class="level-value" id="low24">---</span>
+      </div>
+      <div class="level-row">
+        <span class="level-label">ATR (volatilite)</span>
+        <span class="level-value" id="atr">---</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNAL -->
+  <div class="card">
+    <div class="card-title">Dernier Signal</div>
+    <div id="signal-badge" class="signal-badge neutre">---</div>
+    <div style="margin-top:8px;font-size:0.85rem;color:#888;">Fiabilite</div>
+    <div class="confidence-bar">
+      <div class="confidence-fill" id="conf-fill" style="width:0%"></div>
+    </div>
+    <div id="conf-value" style="font-size:1.1rem;font-weight:700;color:#ffd700;">---</div>
+    <div style="margin-top:10px;font-size:0.8rem;color:#888;" id="signal-time">---</div>
+    <div style="margin-top:8px;">
+      <span id="session-tag" class="tag neut">---</span>
+      <span id="structure-tag" class="tag neut">---</span>
+      <span id="validated-tag" class="tag neut">---</span>
+    </div>
+  </div>
+
+  <!-- NIVEAUX -->
+  <div class="card">
+    <div class="card-title">Plan de Trade</div>
+    <div class="level-row">
+      <span class="level-label">Zone Entree</span>
+      <span class="level-value entry" id="entry-zone">---</span>
+    </div>
+    <div class="level-row">
+      <span class="level-label">Stop Loss</span>
+      <span class="level-value sl" id="sl-val">---</span>
+    </div>
+    <div class="level-row">
+      <span class="level-label">TP1 (30%)</span>
+      <span class="level-value tp" id="tp1-val">---</span>
+    </div>
+    <div class="level-row">
+      <span class="level-label">TP2 (objectif)</span>
+      <span class="level-value tp" id="tp2-val">---</span>
+    </div>
+    <div class="level-row">
+      <span class="level-label">TP3 (max)</span>
+      <span class="level-value tp" id="tp3-val">---</span>
+    </div>
+    <div class="level-row">
+      <span class="level-label">Ratio R/R</span>
+      <span class="level-value" id="rr-val">---</span>
+    </div>
+  </div>
+
+  <!-- MULTI-TIMEFRAME -->
+  <div class="card">
+    <div class="card-title">Multi-Timeframe</div>
+    <div class="mtf-row">
+      <div class="mtf-card">
+        <div class="mtf-tf">H1</div>
+        <div class="mtf-sig" id="h1-sig">---</div>
+        <div class="mtf-conf" id="h1-conf">---</div>
+      </div>
+      <div class="mtf-card">
+        <div class="mtf-tf">H4</div>
+        <div class="mtf-sig" id="h4-sig">---</div>
+        <div class="mtf-conf" id="h4-conf">---</div>
+      </div>
+      <div class="mtf-card">
+        <div class="mtf-tf">D1</div>
+        <div class="mtf-sig" id="d1-sig">---</div>
+        <div class="mtf-conf" id="d1-conf">---</div>
+      </div>
+    </div>
+    <div style="margin-top:15px;">
+      <div class="level-row">
+        <span class="level-label">Structure</span>
+        <span class="level-value" id="structure-val">---</span>
+      </div>
+      <div class="level-row">
+        <span class="level-label">Session</span>
+        <span class="level-value" id="session-val">---</span>
+      </div>
+      <div class="level-row">
+        <span class="level-label">Fibonacci</span>
+        <span class="level-value" id="fib-val">---</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PERFORMANCE -->
+  <div class="card">
+    <div class="card-title">Performance (7 jours)</div>
+    <div class="perf-big" id="win-rate">---%</div>
+    <div style="margin-top:4px;font-size:0.8rem;color:#888;">Taux de reussite</div>
+    <div style="margin-top:15px;">
+      <div class="stat-row">
+        <span class="stat-label">Total signaux</span>
+        <span class="stat-value" id="total-signals">---</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Wins</span>
+        <span class="stat-value outcome-win" id="total-wins">---</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Losses</span>
+        <span class="stat-value outcome-loss" id="total-losses">---</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">En cours</span>
+        <span class="stat-value outcome-open" id="total-open">---</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- INDICATEURS -->
+  <div class="card">
+    <div class="card-title">Indicateurs H1</div>
+    <div class="indicator-grid" id="indicators-grid">
+      <div class="ind-item"><div class="ind-name">RSI</div><div class="ind-value" id="ind-rsi">---</div></div>
+      <div class="ind-item"><div class="ind-name">MACD</div><div class="ind-value" id="ind-macd">---</div></div>
+      <div class="ind-item"><div class="ind-name">ADX</div><div class="ind-value" id="ind-adx">---</div></div>
+      <div class="ind-item"><div class="ind-name">Stoch</div><div class="ind-value" id="ind-stoch">---</div></div>
+      <div class="ind-item"><div class="ind-name">CCI</div><div class="ind-value" id="ind-cci">---</div></div>
+      <div class="ind-item"><div class="ind-name">Williams</div><div class="ind-value" id="ind-wr">---</div></div>
+      <div class="ind-item"><div class="ind-name">EMA 20</div><div class="ind-value" id="ind-e20">---</div></div>
+      <div class="ind-item"><div class="ind-name">EMA 50</div><div class="ind-value" id="ind-e50">---</div></div>
+    </div>
+  </div>
+
+  <!-- HISTORIQUE SIGNAUX -->
+  <div class="card full-width">
+    <div class="card-title">Historique des Signaux</div>
+    <div style="overflow-x:auto;">
+      <table class="signals-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Signal</th>
+            <th>Confiance</th>
+            <th>Entree</th>
+            <th>TP2</th>
+            <th>SL</th>
+            <th>R/R</th>
+            <th>Structure</th>
+            <th>Session</th>
+            <th>AI</th>
+            <th>Resultat</th>
+          </tr>
+        </thead>
+        <tbody id="signals-tbody">
+          <tr><td colspan="11" class="loading">Chargement...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = "https://zytfwhswmbgnsrpchlhs.supabase.co"
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5dGZ3aHN3bWJnbnNycGNobGhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNDE2MTYsImV4cCI6MjA4OTkxNzYxNn0.Ug8dxGcD3HbJg_0eRyQtdRz_ji5AJOxdDV_vUdGYIZs"
+const TWELVE_KEY = "9c475374e2044b458a85471a7da93ab1"
+
+const headers = {
+  "apikey": SUPABASE_KEY,
+  "Authorization": "Bearer " + SUPABASE_KEY
+}
+
+async function fetchSupabase(table, params = "") {
+  const r = await fetch(SUPABASE_URL + "/rest/v1/" + table + "?" + params, { headers })
+  return r.json()
+}
+
+async function fetchPrice() {
+  try {
+    const r = await fetch("https://api.twelvedata.com/quote?symbol=XAU/USD&apikey=" + TWELVE_KEY)
+    const d = await r.json()
+    const price = parseFloat(d.close)
+    const change = parseFloat(d.change)
+    const pct = parseFloat(d.percent_change)
+
+    document.getElementById("price").textContent = price.toFixed(2)
+    const chgEl = document.getElementById("price-change")
+    const sign = change >= 0 ? "+" : ""
+    chgEl.textContent = sign + change.toFixed(2) + " (" + sign + pct.toFixed(2) + "%)"
+    chgEl.className = "price-change " + (change >= 0 ? "up" : "down")
+  } catch(e) {
+    document.getElementById("price").textContent = "Erreur API"
+  }
+}
+
+async function fetchSignals() {
+  try {
+    const data = await fetchSupabase("signals", "select=*&order=created_at.desc&limit=50")
+    if (!data || !data.length) {
+      document.getElementById("signals-tbody").innerHTML = '<tr><td colspan="11" class="loading">Aucun signal enregistre</td></tr>'
+      return
+    }
+
+    // Latest signal
+    const latest = data[0]
+    const sigEl = document.getElementById("signal-badge")
+    sigEl.textContent = latest.signal || "---"
+    sigEl.className = "signal-badge " + (latest.signal === "BUY" ? "buy" : latest.signal === "SELL" ? "sell" : "neutre")
+
+    const conf = latest.confidence || 0
+    document.getElementById("conf-fill").style.width = conf + "%"
+    document.getElementById("conf-value").textContent = conf + "% fiabilite"
+    document.getElementById("signal-time").textContent = new Date(latest.created_at).toLocaleString("fr-FR")
+
+    document.getElementById("session-tag").textContent = latest.session || "---"
+    document.getElementById("structure-tag").textContent = latest.structure || "---"
+
+    const valTag = document.getElementById("validated-tag")
+    valTag.textContent = latest.validated ? "AI VALIDE" : "AI REJETE"
+    valTag.className = "tag " + (latest.validated ? "bull" : "bear")
+
+    document.getElementById("entry-zone").textContent = latest.entry_price ? latest.entry_price.toFixed(2) : "---"
+    document.getElementById("sl-val").textContent = latest.sl ? latest.sl.toFixed(2) : "---"
+    document.getElementById("tp1-val").textContent = latest.tp1 ? latest.tp1.toFixed(2) : "---"
+    document.getElementById("tp2-val").textContent = latest.tp2 ? latest.tp2.toFixed(2) : "---"
+    document.getElementById("tp3-val").textContent = latest.tp3 ? latest.tp3.toFixed(2) : "---"
+    document.getElementById("rr-val").textContent = latest.rr ? "1:" + latest.rr : "---"
+
+    // Performance
+    const week = new Date()
+    week.setDate(week.getDate() - 7)
+    const weekly = data.filter(s => new Date(s.created_at) > week)
+    const wins = weekly.filter(s => s.outcome === "WIN").length
+    const losses = weekly.filter(s => s.outcome === "LOSS").length
+    const open = weekly.filter(s => s.outcome === "OPEN").length
+    const total = weekly.length
+    const winRate = (wins + losses) > 0 ? ((wins / (wins + losses)) * 100).toFixed(1) : 0
+
+    const wrEl = document.getElementById("win-rate")
+    wrEl.textContent = winRate + "%"
+    wrEl.className = "perf-big " + (winRate >= 60 ? "good" : winRate >= 45 ? "neutral" : "bad")
+    document.getElementById("total-signals").textContent = total
+    document.getElementById("total-wins").textContent = wins
+    document.getElementById("total-losses").textContent = losses
+    document.getElementById("total-open").textContent = open
+
+    // Table
+    const tbody = document.getElementById("signals-tbody")
+    tbody.innerHTML = data.slice(0, 20).map(s => {
+      const date = new Date(s.created_at).toLocaleString("fr-FR", {
+        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+      })
+      const sigClass = s.signal === "BUY" ? "outcome-win" : s.signal === "SELL" ? "outcome-loss" : ""
+      const outClass = s.outcome === "WIN" ? "outcome-win" : s.outcome === "LOSS" ? "outcome-loss" : "outcome-open"
+      return (
+        "<tr>" +
+        "<td>" + date + "</td>" +
+        "<td class='" + sigClass + "'>" + (s.signal || "---") + "</td>" +
+        "<td>" + (s.confidence || "---") + "%</td>" +
+        "<td>" + (s.entry_price ? s.entry_price.toFixed(2) : "---") + "</td>" +
+        "<td class='outcome-win'>" + (s.tp2 ? s.tp2.toFixed(2) : "---") + "</td>" +
+        "<td class='outcome-loss'>" + (s.sl ? s.sl.toFixed(2) : "---") + "</td>" +
+        "<td>" + (s.rr ? "1:" + s.rr : "---") + "</td>" +
+        "<td>" + (s.structure || "---") + "</td>" +
+        "<td>" + (s.session || "---") + "</td>" +
+        "<td>" + (s.validated ? "OUI" : "NON") + "</td>" +
+        "<td class='" + outClass + "'>" + (s.outcome || "---") + "</td>" +
+        "</tr>"
+      )
+    }).join("")
+
+  } catch(e) {
+    document.getElementById("signals-tbody").innerHTML = '<tr><td colspan="11" class="error">Erreur: ' + e.message + '</td></tr>'
+  }
+}
+
+function updateTime() {
+  document.getElementById("last-update").textContent = "Mis a jour " + new Date().toLocaleTimeString("fr-FR")
+}
+
+function setSigColor(id, value, type) {
+  const el = document.getElementById(id)
+  if (!el) return
+  el.textContent = value
+  if (type === "rsi") {
+    el.className = "ind-value " + (value < 30 ? "bull" : value > 70 ? "bear" : "neut")
+  } else if (type === "macd" || type === "mom") {
+    el.className = "ind-value " + (value > 0 ? "bull" : value < 0 ? "bear" : "neut")
+  } else {
+    el.className = "ind-value neut"
+  }
+}
+
+async function loadAll() {
+  updateTime()
+  await fetchPrice()
+  await fetchSignals()
+}
+
+loadAll()
+setInterval(loadAll, 30000)
+</script>
+</body>
+</html>
