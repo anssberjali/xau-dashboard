@@ -299,29 +299,55 @@ function getSession() {
 }
 
 async function fetchPrice() {
+  // Essaie plusieurs sources de prix en fallback
+  const proxies = [
+    "https://corsproxy.io/?" + encodeURIComponent(PRICE_URL),
+    "https://api.allorigins.win/raw?url=" + encodeURIComponent(PRICE_URL),
+    "https://cors-anywhere.herokuapp.com/" + PRICE_URL,
+  ]
+
+  // Source directe Supabase: utilise le dernier signal pour afficher le prix
   try {
-    // Utilise AllOrigins comme proxy CORS gratuit
-    const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(PRICE_URL)
-    const r = await fetch(proxyUrl)
-    const d = await r.json()
+    const data = await fetchSupabase("signals", "select=entry_price,created_at&order=created_at.desc&limit=1")
+    if (data && data.length && data[0].entry_price) {
+      const p = data[0].entry_price
+      document.getElementById("price").textContent = p.toFixed(2)
+      document.getElementById("price-change").textContent = "Derniere entree connue"
+      document.getElementById("price-change").className = "price-change neut-col"
+    }
+  } catch(e) {}
 
-    if (d.status === "error" || !d.close) throw new Error("API error")
+  // Essaie les proxies pour le vrai prix temps reel
+  for (const proxyUrl of proxies) {
+    try {
+      const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) })
+      const d = await r.json()
+      if (!d || d.status === "error" || !d.close) continue
 
-    const price = parseFloat(d.close)
-    const change = parseFloat(d.change)
-    const pct = parseFloat(d.percent_change)
+      const price = parseFloat(d.close)
+      const change = parseFloat(d.change)
+      const pct = parseFloat(d.percent_change)
+      if (isNaN(price)) continue
 
-    document.getElementById("price").textContent = price.toFixed(2)
-    const chgEl = document.getElementById("price-change")
-    const sign = change >= 0 ? "+" : ""
-    chgEl.textContent = sign + change.toFixed(2) + " USD (" + sign + pct.toFixed(2) + "%)"
-    chgEl.className = "price-change " + (change >= 0 ? "up" : "down")
-    document.getElementById("session").textContent = getSession()
+      document.getElementById("price").textContent = price.toFixed(2)
+      const chgEl = document.getElementById("price-change")
+      const sign = change >= 0 ? "+" : ""
+      chgEl.textContent = sign + change.toFixed(2) + " USD (" + sign + pct.toFixed(2) + "%)"
+      chgEl.className = "price-change " + (change >= 0 ? "up" : "down")
+      document.getElementById("session").textContent = getSession()
+      return
+    } catch(e) {
+      console.log("Proxy failed:", proxyUrl, e.message)
+      continue
+    }
+  }
 
-  } catch(e) {
-    document.getElementById("price").textContent = "Erreur"
-    document.getElementById("price-change").textContent = e.message
-    console.error("Price error:", e)
+  // Si tous les proxies echouent, affiche la session quand meme
+  document.getElementById("session").textContent = getSession()
+  if (document.getElementById("price").textContent === "---") {
+    document.getElementById("price").textContent = "API limit"
+    document.getElementById("price-change").textContent = "Voir prix sur MT4"
+    document.getElementById("price-change").className = "price-change neut-col"
   }
 }
 
