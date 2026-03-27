@@ -299,47 +299,76 @@ function getSession() {
 }
 
 async function fetchPrice() {
-  // Finnhub autorise les requetes depuis le navigateur (pas de CORS)
   const FINNHUB_KEY = "d711gs9r01ql6rg10kigd711gs9r01ql6rg10kj0"
-  try {
-    const r = await fetch(
-      "https://finnhub.io/api/v1/quote?symbol=OANDA%3AXAUUSD&token=" + FINNHUB_KEY,
-      { signal: AbortSignal.timeout(6000) }
-    )
-    const d = await r.json()
-    if (!d || !d.c || d.c === 0) throw new Error("No data")
 
-    const price = d.c
-    const prev = d.pc
-    const change = parseFloat((price - prev).toFixed(2))
-    const pct = parseFloat(((change / prev) * 100).toFixed(2))
+  // Essaie plusieurs symboles Finnhub pour XAU/USD
+  const symbols = [
+    "OANDA:XAU_USD",
+    "OANDA:XAUUSD",
+    "FOREX:XAUUSD",
+    "IC MARKETS:XAUUSD"
+  ]
 
-    document.getElementById("price").textContent = price.toFixed(2)
-    const chgEl = document.getElementById("price-change")
-    const sign = change >= 0 ? "+" : ""
-    chgEl.textContent = sign + change.toFixed(2) + " USD (" + sign + pct.toFixed(2) + "%)"
-    chgEl.className = "price-change " + (change >= 0 ? "up" : "down")
-    document.getElementById("session").textContent = getSession()
-    return
+  for (const sym of symbols) {
+    try {
+      const url = "https://finnhub.io/api/v1/quote?symbol=" + encodeURIComponent(sym) + "&token=" + FINNHUB_KEY
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000) })
+      const d = await r.json()
 
-  } catch(e) {
-    console.log("Finnhub error:", e.message)
+      console.log("Finnhub " + sym + ":", d)
+
+      if (!d || !d.c || d.c === 0) continue
+
+      const price = d.c
+      const prev = d.pc || price
+      const change = parseFloat((price - prev).toFixed(2))
+      const pct = parseFloat(((change / prev) * 100).toFixed(2))
+
+      document.getElementById("price").textContent = price.toFixed(2)
+      const chgEl = document.getElementById("price-change")
+      const sign = change >= 0 ? "+" : ""
+      chgEl.textContent = sign + change.toFixed(2) + " (" + sign + pct.toFixed(2) + "%)"
+      chgEl.className = "price-change " + (change >= 0 ? "up" : "down")
+      document.getElementById("session").textContent = getSession()
+      console.log("Prix OK via " + sym + ": " + price)
+      return
+
+    } catch(e) {
+      console.log("Finnhub " + sym + " failed:", e.message)
+      continue
+    }
   }
 
-  // Fallback: utilise le dernier prix connu depuis Supabase
+  // Fallback: Metals-API via proxy
+  try {
+    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent("https://api.metals.live/v1/spot/gold")
+    const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) })
+    const d = await r.json()
+    if (d && d[0] && d[0].gold) {
+      const price = parseFloat(d[0].gold)
+      document.getElementById("price").textContent = price.toFixed(2)
+      document.getElementById("price-change").textContent = "Source: metals.live"
+      document.getElementById("price-change").className = "price-change neut-col"
+      document.getElementById("session").textContent = getSession()
+      console.log("Prix OK via metals.live:", price)
+      return
+    }
+  } catch(e) {
+    console.log("Metals fallback failed:", e.message)
+  }
+
+  // Fallback final: dernier signal Supabase
   try {
     const data = await fetchSupabase("signals", "select=entry_price,created_at&order=created_at.desc&limit=1")
     if (data && data.length && data[0].entry_price) {
       const p = data[0].entry_price
-      document.getElementById("price").textContent = p.toFixed(2)
+      document.getElementById("price").textContent = "~" + p.toFixed(2)
       document.getElementById("price-change").textContent = "Derniere entree connue"
       document.getElementById("price-change").className = "price-change neut-col"
       document.getElementById("session").textContent = getSession()
     }
   } catch(e2) {
-    document.getElementById("price").textContent = "Indisponible"
     document.getElementById("price-change").textContent = "Voir prix sur MT4"
-    document.getElementById("price-change").className = "price-change neut-col"
   }
 }
 
